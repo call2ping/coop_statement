@@ -18,6 +18,7 @@
   const pct = (v) => (v == null || !isFinite(v) ? "–" : nf2.format(v) + "%");
   const spct = (v) => (v == null || !isFinite(v) ? "–" : (v > 0 ? "+" : v < 0 ? "−" : "") + nf2.format(Math.abs(v)) + "%");
   const cnt = (v) => (v == null ? "–" : nf0.format(v));
+  const refundText = (h) => (h ? h.refundRateText || pct(h.refundRate) : "–");
   const growth = (y, py) => (py ? ((y - py) / Math.abs(py)) * 100 : null);
   const sum = (arr) => arr.reduce((s, x) => s + (x || 0), 0);
 
@@ -52,7 +53,7 @@
     view: "home",
     coop: 0,
     tab: "overview",
-    home: { q: "", sort: "assets", riskOnly: false, issuesOnly: false, cat: "all", benchOnly: false },
+    home: { q: "", year: "all", sort: "assets", riskOnly: false, issuesOnly: false, cat: "all", benchOnly: false },
     st: { statement: "all", sec: "all", level: "main", dir: "all", minPct: 0, q: "", sort: "order", sortDir: -1 },
     ratio: { cat: "all", trend: "all", bench: "all" },
     port: { sections: new Set(["loans", "funding", "placed", "invest", "lines"]), q: "", problemOnly: false },
@@ -94,10 +95,11 @@
   const RATIO_CATS = ["สภาพคล่อง", "โครงสร้างเงินทุน", "ความสามารถในการทำกำไร", "ส่วนต่างและประสิทธิภาพ", "คุณภาพสินทรัพย์", "ต่อสมาชิก"];
 
   function problemLoans(c, k) {
-    if (!c.loans) return null;
-    const rows = sum(c.loans.filter((l) => l.problem).map((l) => (k === "y" ? l.end : l.begin)));
-    const na = c.loanNotes && c.loanNotes.nonAccrual ? c.loanNotes.nonAccrual[k] || 0 : 0;
-    return rows + na;
+    const na = c.loanNotes && c.loanNotes.nonAccrual ? c.loanNotes.nonAccrual[k] : undefined;
+    if (!c.loans && na === undefined) return null;
+    if (na === null) return null;
+    const rows = c.loans ? sum(c.loans.filter((l) => l.problem).map((l) => (k === "y" ? l.end : l.begin))) : 0;
+    return rows + (na || 0);
   }
 
   function computeRatios(c, A) {
@@ -107,7 +109,7 @@
     const prior = c.priorBalances || {};
     const loans = (k) => val("st_loans", k) + val("lt_loans", k);
     const liquid = (k) => val("cash", k) + val("dep_coops", k) + val("st_invest", k);
-    const loanInt = (k) => val("inc_loan", k) + val("inc_exmember", k) + val("inc_judgment", k);
+    const loanInt = (k) => val("inc_loan", k) + val("inc_exmember", k) + val("inc_judgment", k) + val("inc_nonaccrual", k);
     const rev = (k) => val("total_int_income", k) + val("total_other_income", k);
     const borrow = (k) => sumIds(BORROW_IDS, k);
     const fundingBase = (k) => val("deposits", k) + borrow(k);
@@ -145,7 +147,7 @@
       { id: "opex_assets", cat: "ส่วนต่างและประสิทธิภาพ", label: "ค่าใช้จ่ายดำเนินงานต่อสินทรัพย์", unit: "%", better: "lower", f: (k) => (val("total_opex", k) / val("total_assets", k)) * 100, formula: "ค่าใช้จ่ายในการดำเนินงาน ÷ สินทรัพย์รวม" },
       { id: "loans_assets", cat: "คุณภาพสินทรัพย์", label: "เงินให้กู้ต่อสินทรัพย์รวม", unit: "%", better: null, f: (k) => (loans(k) / val("total_assets", k)) * 100, formula: "เงินให้กู้ ÷ สินทรัพย์รวม" },
       { id: "ldr", cat: "คุณภาพสินทรัพย์", label: "เงินให้กู้ต่อเงินรับฝาก (LDR)", unit: "%", better: null, f: (k) => (loans(k) / val("deposits", k)) * 100, formula: "เงินให้กู้ ÷ เงินรับฝาก" },
-      { id: "problem_loans", cat: "คุณภาพสินทรัพย์", label: "ลูกหนี้มีปัญหาต่อเงินให้กู้", unit: "%", better: "lower", f: c.loans ? (k) => (problemLoans(c, k) / loans(k)) * 100 : null, formula: "(ลูกหนี้ขาดสมาชิกภาพ + ลูกหนี้ตามคำพิพากษา + เงินให้กู้ที่ไม่ก่อให้เกิดรายได้) ÷ เงินให้กู้" },
+      { id: "problem_loans", cat: "คุณภาพสินทรัพย์", label: "ลูกหนี้มีปัญหาต่อเงินให้กู้", unit: "%", better: "lower", f: c.loans || (c.loanNotes && c.loanNotes.nonAccrual) ? (k) => { const p = problemLoans(c, k); return p == null ? null : (p / loans(k)) * 100; } : null, formula: "(ลูกหนี้ขาดสมาชิกภาพ + ลูกหนี้ตามคำพิพากษา + เงินให้กู้ที่ไม่ก่อให้เกิดรายได้) ÷ เงินให้กู้" },
       { id: "share_pm", cat: "ต่อสมาชิก", label: "ทุนเรือนหุ้นเฉลี่ยต่อสมาชิก", unit: "baht", better: "higher", f: m.total ? (k) => val("shares", k) / members(k) : null, formula: "ทุนเรือนหุ้น ÷ จำนวนสมาชิก" },
       { id: "dep_pm", cat: "ต่อสมาชิก", label: "เงินฝากสมาชิกเฉลี่ยต่อสมาชิก", unit: "baht", better: "higher", needs: ["dep_m_sav"], f: m.total ? (k) => sumIds(MEMBER_DEP_IDS, k) / members(k) : null, formula: "เงินรับฝากจากสมาชิก ÷ จำนวนสมาชิก" },
       { id: "profit_pm", cat: "ต่อสมาชิก", label: "กำไรสุทธิต่อสมาชิก", unit: "baht", better: "higher", f: m.total ? (k) => val("net_profit", k) / members(k) : null, formula: "กำไรสุทธิ ÷ จำนวนสมาชิก" },
@@ -209,7 +211,8 @@
         if (n > 0) d += ` (เติบโตเฉลี่ย ${pct((Math.pow(np / first.profit, 1 / n) - 1) * 100)} ต่อปีนับจากปี ${first.year})`;
       }
       if (c.plan && c.plan.current) d += ` คิดเป็น ${pct((np / c.plan.current.profitPlan) * 100)} ของเป้าหมาย ${M(c.plan.current.profitPlan)}`;
-      add(g >= 0 ? "good" : "risk", "ผลประกอบการ", `กำไรสุทธิ${g >= 0 ? "เพิ่มขึ้น" : "ลดลง"} ${pct(Math.abs(g))} เป็น ${M(np)}`, d, "statements");
+      if (g < 0 && c.profitContext) d += ` — ${c.profitContext}`;
+      add(g >= 0 ? "good" : c.profitContext ? "watch" : "risk", "ผลประกอบการ", `กำไรสุทธิ${g >= 0 ? "เพิ่มขึ้น" : "ลดลง"} ${pct(Math.abs(g))} เป็น ${M(np)}`, d, "statements");
     }
 
     // คุณภาพกำไร
@@ -352,14 +355,14 @@
     }
 
     // ผลตอบแทนแก่สมาชิก และการจัดสรรทุนสำรอง
-    if (hist.length > 1) {
+    if (hist.length >= 1) {
       const h = hist[hist.length - 1];
       const prior = hist.slice(0, -1);
       const prev = prior[prior.length - 1];
-      const record = longHistory && h.dividendRate > Math.max(...prior.map((p) => p.dividendRate)) && h.refundRate > Math.max(...prior.map((p) => p.refundRate));
+      const record = longHistory && h.refundRate != null && h.dividendRate > Math.max(...prior.map((p) => p.dividendRate)) && h.refundRate > Math.max(...prior.map((p) => p.refundRate));
       const toMembers = ((h.dividend + h.refund) / h.profit) * 100;
-      add("good", "ผลตอบแทนแก่สมาชิก", `ปันผล ${pct(h.dividendRate)} เฉลี่ยคืน ${pct(h.refundRate)}${record ? ` สูงสุดในรอบ ${hist.length} ปี` : ""}`,
-        `จัดสรรเป็นเงินปันผล ${M(h.dividend)} และเงินเฉลี่ยคืน ${M(h.refund)} รวม ${pct(toMembers)} ของกำไรสุทธิ (ปีก่อนปันผล ${pct(prev.dividendRate)} เฉลี่ยคืน ${pct(prev.refundRate)})`,
+      add("good", "ผลตอบแทนแก่สมาชิก", `ปันผล ${pct(h.dividendRate)} เฉลี่ยคืน ${refundText(h)}${record ? ` สูงสุดในรอบ ${hist.length} ปี` : ""}`,
+        `จัดสรรเป็นเงินปันผล ${M(h.dividend)} และเงินเฉลี่ยคืน ${M(h.refund)} รวม ${pct(toMembers)} ของกำไรสุทธิ${prev ? ` (ปีก่อนปันผล ${pct(prev.dividendRate)} เฉลี่ยคืน ${refundText(prev)})` : ""}`,
         "trends");
       if (prior.length >= 3) {
         const resShare = (h.reserve / h.profit) * 100;
@@ -420,7 +423,7 @@
       const highExit = hasFlow && h.length > 2 && last.left > Math.max(...h.slice(0, -1).map((x) => x.left));
       let d = hasFlow ? `สมาชิกใหม่ ${cnt(last.joined)} คน ออก ${cnt(last.left)} คน` : `สมาชิกสามัญ ${cnt(m.ordinary)} คน (ปีก่อน ${cnt(m.prevOrdinary)}) สมทบ ${cnt(m.associate)} คน (ปีก่อน ${cnt(m.prevAssociate)})`;
       if (highExit) {
-        const ex = m.exits2569 || {};
+        const ex = m.exits || m.exits2569 || {};
         d += ` จำนวนผู้ออกสูงที่สุดในรอบ ${h.length} ปี`;
         if (ex.resigned != null) d += ` (ลาออก ${ex.resigned}, ขาดจากสมาชิกภาพ ${ex.lostMembership}, ถึงแก่กรรม ${ex.died}, โอนย้าย ${ex.transferred})`;
       }
@@ -536,7 +539,7 @@
       c.members ? { label: "สมาชิก", value: nf0.format(c.members.total), unit: "คน", d: delta(growth(c.members.total, c.members.prevTotal), true) } : null,
       R.roe ? { label: "ROE", value: nf2.format(R.roe.y), unit: "%", d: R.roe.pyApprox ? "" : delta(R.roe.y - R.roe.py, true, "pt"), vs: R.roe.benchmark != null ? `ค่าเฉลี่ย ${pct(R.roe.benchmark)}` : "" } : null,
       h ? { label: "อัตราเงินปันผล", value: nf2.format(h.dividendRate), unit: "%", d: hp ? delta(h.dividendRate - hp.dividendRate, true, "pt") : "" } : null,
-      h ? { label: "อัตราเงินเฉลี่ยคืน", value: nf2.format(h.refundRate), unit: "%", d: hp ? delta(h.refundRate - hp.refundRate, true, "pt") : "" } : null
+      h ? (h.refundRate != null ? { label: "อัตราเงินเฉลี่ยคืน", value: nf2.format(h.refundRate), unit: "%", d: hp && hp.refundRate != null ? delta(h.refundRate - hp.refundRate, true, "pt") : "" } : { label: "อัตราเงินเฉลี่ยคืน", value: esc(h.refundRateText || "–"), unit: "" }) : null
     ].filter(Boolean);
 
     const top = A.findings.filter((f) => f.sev === "risk" || f.sev === "watch").slice(0, 5);
@@ -566,7 +569,7 @@
       </div>
 
       <section class="section kpis">
-        ${kpis.map((k) => `<div class="card kpi"><div class="label">${esc(k.label)}${k.unit && k.unit !== "%" ? ` <span class="muted">(${esc(k.unit)})</span>` : ""}</div><div class="value">${k.value}${k.unit === "%" ? "%" : ""}</div><div>${k.d}</div>${k.vs ? `<div class="vs">${esc(k.vs)}</div>` : ""}</div>`).join("")}
+        ${kpis.map((k) => `<div class="card kpi"><div class="label">${esc(k.label)}${k.unit && k.unit !== "%" ? ` <span class="muted">(${esc(k.unit)})</span>` : ""}</div><div class="value">${k.value}${k.unit === "%" ? "%" : ""}</div>${k.d ? `<div>${k.d}</div>` : ""}${k.vs ? `<div class="vs">${esc(k.vs)}</div>` : ""}</div>`).join("")}
       </section>
 
       <section class="section grid grid-2">
@@ -1048,7 +1051,7 @@
       </section>
       <section class="section"><h3 style="margin-bottom:8px">การจัดสรรกำไรสุทธิ</h3><div class="table-wrap"><table>
         <thead><tr><th>ปี</th><th class="r">กำไรสุทธิ</th><th class="r">เติบโต</th><th class="r">ทุนสำรอง</th><th class="r">% ของกำไร</th><th class="r">เงินปันผล</th><th class="r">อัตรา</th><th class="r">เงินเฉลี่ยคืน</th><th class="r">อัตรา</th><th class="r">โบนัสกรรมการและเจ้าหน้าที่</th></tr></thead>
-        <tbody>${H.slice().reverse().map((h) => { const p = hist[hist.indexOf(h) - 1]; return `<tr><td>${h.year}</td><td class="r num">${baht(h.profit)}</td><td class="r num">${p ? spct(growth(h.profit, p.profit)) : "–"}</td><td class="r num">${baht(h.reserve)}</td><td class="r num">${pct((h.reserve / h.profit) * 100)}</td><td class="r num">${baht(h.dividend)}</td><td class="r num">${pct(h.dividendRate)}</td><td class="r num">${baht(h.refund)}</td><td class="r num">${pct(h.refundRate)}</td><td class="r num">${baht(h.bonus)}</td></tr>`; }).join("") || `<tr><td colspan="10" class="empty">ไม่มีข้อมูลในช่วงปีที่เลือก</td></tr>`}</tbody>
+        <tbody>${H.slice().reverse().map((h) => { const p = hist[hist.indexOf(h) - 1]; return `<tr><td>${h.year}</td><td class="r num">${baht(h.profit)}</td><td class="r num">${p ? spct(growth(h.profit, p.profit)) : "–"}</td><td class="r num">${baht(h.reserve)}</td><td class="r num">${pct((h.reserve / h.profit) * 100)}</td><td class="r num">${baht(h.dividend)}</td><td class="r num">${pct(h.dividendRate)}</td><td class="r num">${baht(h.refund)}</td><td class="r num">${esc(refundText(h))}</td><td class="r num">${baht(h.bonus)}</td></tr>`; }).join("") || `<tr><td colspan="10" class="empty">ไม่มีข้อมูลในช่วงปีที่เลือก</td></tr>`}</tbody>
       </table></div></section>`;
 
     if (H.length) {
@@ -1056,7 +1059,7 @@
       C.lines(document.getElementById("tr-rates"), [
         { name: "เงินปันผล", color: "var(--series-1)", points: H.map((h) => ({ x: h.year, y: h.dividendRate })) },
         { name: "เงินเฉลี่ยคืน", color: "var(--series-2)", points: H.map((h) => ({ x: h.year, y: h.refundRate })) }
-      ], { fmtAxis: (t) => nf0.format(t) + "%", fmtValue: (t) => nf2.format(t) + "%", label: "อัตราเงินปันผลและเงินเฉลี่ยคืน" });
+      ].filter((s) => s.points.every((p) => p.y != null)), { fmtAxis: (t) => nf0.format(t) + "%", fmtValue: (t) => nf2.format(t) + "%", label: "อัตราเงินปันผลและเงินเฉลี่ยคืน" });
     } else {
       document.getElementById("tr-profit").innerHTML = document.getElementById("tr-rates").innerHTML = `<div class="empty">ไม่มีข้อมูลในช่วงปีที่เลือก</div>`;
     }
@@ -1124,7 +1127,7 @@
     const q = f.q.trim().toLowerCase();
     const rows = coops.map((c, i) => ({ c, i, A: analysisOf(i) })).filter(({ c, A }) =>
       (!q || [c.name, c.shortName, c.province || "", c.nameEn || ""].join(" ").toLowerCase().indexOf(q) >= 0) &&
-      (!f.riskOnly || sevCount(A, "risk") > 0));
+      (!f.riskOnly || sevCount(A, "risk") > 0) && (f.year === "all" || String(c.report.year) === f.year));
     const key = HOME_SORTS[f.sort].key;
     return rows.sort(key ? (a, b) => key(b) - key(a) : (a, b) => a.c.shortName.localeCompare(b.c.shortName, "th"));
   }
@@ -1146,7 +1149,7 @@
         ${c.province ? `<span class="tag">จ.${esc(c.province)}</span>` : ""}
       </div>
       <div class="coop-card-hero">
-        <div class="muted small">กำไรสุทธิปีบัญชี ${c.report.year}</div>
+        <div class="muted small">กำไรสุทธิปีบัญชี ${c.report.year} (สิ้นสุด ${esc(c.report.fiscalYearEnd)})</div>
         <div class="value">${mb(np)} <small>ล้านบาท</small></div>
         <div>${delta(growth(np, A.val("net_profit", "py")), true)} <span class="muted small">เทียบปี ${c.report.prevYear}</span></div>
       </div>
@@ -1155,7 +1158,7 @@
         ${stat("เงินให้กู้แก่สมาชิก", `${mb(A.val("st_loans", "y") + A.val("lt_loans", "y"))} ล้านบาท`)}
         ${stat("สมาชิก", `${cnt(c.members && c.members.total)} คน`)}
         ${stat("ROE", roe ? `${pct(roe.y)}${roe.benchmark != null ? ` <span class="small ${roe.vsBench === "better" ? "pos" : "neg"}">(เฉลี่ย ${pct(roe.benchmark)})</span>` : ""}` : "–")}
-        ${stat("ปันผล / เฉลี่ยคืน", h ? `${pct(h.dividendRate)} / ${pct(h.refundRate)}` : "–")}
+        ${stat("ปันผล / เฉลี่ยคืน", h ? `${pct(h.dividendRate)} / ${esc(refundText(h))}` : "–")}
         ${stat("เงินฝากจากสหกรณ์อื่น", cs ? `${pct(cs.y)} ของเงินรับฝาก` : "–")}
       </dl>
       <div class="sev-counts">${["risk", "watch", "good"].map((s) => `<span class="sev sev-${s}"><span class="sev-icon" aria-hidden="true">${SEV[s].icon}</span>${SEV[s].label} ${sevCount(A, s)}</span>`).join("")}</div>
@@ -1223,7 +1226,7 @@
       ["กำไรสุทธิเปลี่ยนแปลง", ({ A }) => spct(growth(A.val("net_profit", "y"), A.val("net_profit", "py")))],
       ["สมาชิก (คน)", ({ c }) => cnt(c.members && c.members.total)],
       ["อัตราเงินปันผล", ({ c }) => (latest(c) ? pct(latest(c).dividendRate) : "–")],
-      ["อัตราเงินเฉลี่ยคืน", ({ c }) => (latest(c) ? pct(latest(c).refundRate) : "–")]
+      ["อัตราเงินเฉลี่ยคืน", ({ c }) => esc(refundText(latest(c)))]
     ];
     const ratioCell = (r, list) => {
       if (!r) return `<td class="r muted">–</td>`;
@@ -1237,6 +1240,8 @@
       <div class="filters" role="group" aria-label="ตัวกรองสหกรณ์">
         <label class="field grow"><span class="field-label">ค้นหาสหกรณ์หรือจังหวัด</span>
           <input type="search" placeholder="เช่น หนองบัวลำภู, อำนาจเจริญ" value="${esc(f.q)}" data-f="home.q"></label>
+        <label class="field"><span class="field-label">ปีบัญชีของรายงาน</span>
+          <select data-f="home.year">${option("all", "ทุกปี", f.year === "all")}${[...new Set(coops.map((c) => c.report.year))].sort().reverse().map((y) => option(String(y), `ปีบัญชี ${y}`, f.year === String(y))).join("")}</select></label>
         <label class="field"><span class="field-label">เรียงตาม</span>
           <select data-f="home.sort">${Object.keys(HOME_SORTS).map((k) => option(k, HOME_SORTS[k].label, f.sort === k)).join("")}</select></label>
         <div class="field"><span class="field-label">เงื่อนไข</span>

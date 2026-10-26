@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>วิเคราะห์รายงานสหกรณ์</title>
+  <meta name="description" content="วิเคราะห์รายงานประจำปีล่าสุดของสหกรณ์ออมทรัพย์ พร้อมตัวกรองผลการวิเคราะห์">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css?v=4">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap header-row">
+      <a class="brand" href="#/" title="ภาพรวมทุกสหกรณ์">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <div>
+          <div class="brand-title">วิเคราะห์รายงานประจำปีสหกรณ์</div>
+          <div class="brand-sub" id="coop-sub"></div>
+        </div>
+      </a>
+      <div class="header-controls">
+        <a class="btn btn-ghost coop-only" href="#/">← ภาพรวมทุกสหกรณ์</a>
+        <label class="field coop-only">
+          <span class="field-label">สหกรณ์</span>
+          <select id="coop-select"></select>
+        </label>
+        <button class="btn btn-ghost" id="theme-toggle" type="button" aria-label="สลับธีม">ธีม: อัตโนมัติ</button>
+      </div>
+    </div>
+    <nav class="wrap tabs coop-only" id="tabs" role="tablist" aria-label="ส่วนของการวิเคราะห์"></nav>
+  </header>
+
+  <main class="wrap" id="main" tabindex="-1"></main>
+
+  <footer class="wrap site-footer" id="footer"></footer>
+
+  <script src="data/registry.js?v=4"></script>
+  <script src="data/benchmarks.js?v=4"></script>
+  <!-- One data file per analysed report. Add new cooperatives here. -->
+  <script src="data/hnbpcoop-2569.js?v=4"></script>
+  <script src="data/acrcoop-2569.js?v=4"></script>
+  <script src="assets/charts.js?v=4"></script>
+  <script src="assets/app.js?v=4"></script>
+</body>
+</html>

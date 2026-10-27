@@ -313,7 +313,8 @@
       const sev = pl.y >= 3 ? "risk" : pl.y >= 1 || naJump ? "watch" : "good";
       let d = `ลูกหนี้ขาดสมาชิกภาพ ลูกหนี้ตามคำพิพากษา${na ? " และเงินให้กู้ที่ไม่ก่อให้เกิดรายได้" : ""}รวม ${M(problemLoans(c, "y"))} คิดเป็น ${pct(pl.y)} ของเงินให้กู้ (ปีก่อน ${pct(pl.py)})`;
       if (na) {
-        d += ` โดยเงินให้กู้ที่ไม่ก่อให้เกิดรายได้เพิ่มจาก ${M(na.py)} เป็น ${M(na.y)}${na.note ? ` — ${na.note}` : ""}`;
+        const naChange = na.py == null ? `${M(na.y)}` : `${na.y > na.py ? "เพิ่มจาก" : na.y < na.py ? "ลดลงจาก" : "คงที่จาก"} ${M(na.py)} เป็น ${M(na.y)}`;
+        d += ` โดยเงินให้กู้ที่ไม่ก่อให้เกิดรายได้${naChange}${na.note ? ` — ${na.note}` : ""}`;
         const al = c.loanNotes.allowance;
         if (al && al.y != null) d += ` ค่าเผื่อหนี้สงสัยจะสูญครอบคลุม ${pct((al.y / na.y) * 100)} ของยอดนี้`;
       }
@@ -346,7 +347,7 @@
           ? `ROE ${pct(R.roe.y)} และ ROA ${pct(R.roa.y)} ต่ำกว่าค่าเฉลี่ย`
           : `ROE ${pct(R.roe.y)} ${eAbove ? "สูงกว่า" : "ต่ำกว่า"}ค่าเฉลี่ย แต่ ROA ${pct(R.roa.y)} ${aAbove ? "สูงกว่า" : "ต่ำกว่า"}ค่าเฉลี่ย`;
       add(sev, "ความสามารถในการทำกำไร", title,
-        `ROE ${pct(R.roe.y)} (ปีก่อน ${R.roe.pyApprox ? "≈" : ""}${pct(R.roe.py)}, ค่าเฉลี่ย ${pct(R.roe.benchmark)}) ROA ${pct(R.roa.y)} (ปีก่อน ${R.roa.pyApprox ? "≈" : ""}${pct(R.roa.py)}, ค่าเฉลี่ย ${pct(R.roa.benchmark)}) ${R.roe.reported ? "ตามที่สหกรณ์คำนวณในรายงาน" : "คำนวณจากยอดถัวเฉลี่ยต้นปีและสิ้นปี"}${!eAbove || !aAbove ? " เมื่อ ROE สูงแต่ ROA ต่ำกว่าค่าเฉลี่ย แสดงว่าผลตอบแทนต่อทุนได้มาจากการใช้หนี้สินในสัดส่วนสูง" : ""}`,
+        `ROE ${pct(R.roe.y)} (ปีก่อน ${R.roe.pyApprox ? "≈" : ""}${pct(R.roe.py)}, ค่าเฉลี่ย ${pct(R.roe.benchmark)}) ROA ${pct(R.roa.y)} (ปีก่อน ${R.roa.pyApprox ? "≈" : ""}${pct(R.roa.py)}, ค่าเฉลี่ย ${pct(R.roa.benchmark)}) ${R.roe.reported ? "ตามที่สหกรณ์คำนวณในรายงาน" : "คำนวณจากยอดถัวเฉลี่ยต้นปีและสิ้นปี"}${eAbove && !aAbove ? " เมื่อ ROE สูงแต่ ROA ต่ำกว่าค่าเฉลี่ย แสดงว่าผลตอบแทนต่อทุนได้มาจากการใช้หนี้สินในสัดส่วนสูง" : !eAbove && aAbove ? " เมื่อ ROA สูงแต่ ROE ต่ำกว่าค่าเฉลี่ย แสดงว่าสินทรัพย์ทำกำไรได้ดี แต่สหกรณ์ใช้ทุนของตนเองในสัดส่วนสูง ผลตอบแทนต่อทุนจึงต่ำกว่าค่าเฉลี่ย" : ""}`,
         "ratios");
     }
     if (R.npm && R.npm.benchmark != null && R.npm.y < R.npm.benchmark) {
@@ -469,7 +470,7 @@
         const amt0 = sum(open.map((x) => x.amount || 0));
         const sev = against.length ? "risk" : open.length ? "watch" : "info";
         add(sev, "คดีความ", `มีคดีที่เกี่ยวข้อง ${cases.length} เรื่อง ยังไม่สิ้นสุด ${open.length} เรื่อง${against.length ? ` (สหกรณ์เป็นฝ่ายถูกฟ้อง/ถูกกล่าวหา ${against.length} เรื่อง)` : ""}`,
-          `${open.map((x) => x.title).join(" · ")}${amt0 ? ` มูลหนี้ตามคำพิพากษาหรือที่เรียกร้องรวม ${M(amt0)}` : ""}${L.disclosure ? ` — ${L.disclosure}` : ""}`, "legal");
+          `${open.map((x) => x.title).join(" · ")}${amt0 ? ` มูลค่าที่เกี่ยวข้องรวม ${M(amt0)}` : ""}${L.disclosure ? ` — ${L.disclosure}` : ""}`, "legal");
       }
     }
 

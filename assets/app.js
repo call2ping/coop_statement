@@ -368,7 +368,7 @@
       add("good", "ผลตอบแทนแก่สมาชิก", `ปันผล ${pct(h.dividendRate)} เฉลี่ยคืน ${refundText(h)}${record ? ` สูงสุดในรอบ ${hist.length} ปี` : ""}`,
         `จัดสรรเป็นเงินปันผล ${M(h.dividend)} และเงินเฉลี่ยคืน ${M(h.refund)} รวม ${pct(toMembers)} ของกำไรสุทธิ${prev ? ` (ปีก่อนปันผล ${pct(prev.dividendRate)} เฉลี่ยคืน ${refundText(prev)})` : ""}`,
         "trends");
-      if (prior.length >= 3) {
+      if (prior.length >= 3 && h.reserve != null && prior.every((p) => p.reserve != null)) {
         const resShare = (h.reserve / h.profit) * 100;
         const avgPrior = sum(prior.map((p) => (p.reserve / p.profit) * 100)) / prior.length;
         if (resShare > avgPrior + 2) {
@@ -429,7 +429,8 @@
       if (highExit) {
         const ex = m.exits || m.exits2569 || {};
         d += ` จำนวนผู้ออกสูงที่สุดในรอบ ${h.length} ปี`;
-        if (ex.resigned != null) d += ` (ลาออก ${ex.resigned}, ขาดจากสมาชิกภาพ ${ex.lostMembership}, ถึงแก่กรรม ${ex.died}, โอนย้าย ${ex.transferred})`;
+        const parts = [["ลาออก", ex.resigned], ["ขาดจากสมาชิกภาพ", ex.lostMembership], ["ถึงแก่กรรม", ex.died], ["โอนย้าย", ex.transferred]].filter(([, v]) => v != null);
+        if (parts.length) d += ` (${parts.map(([k, v]) => `${k} ${v}`).join(", ")})`;
       }
       if (m.borrowers) d += ` สมาชิกที่มีเงินกู้ ${cnt(m.borrowers)} คน (${pct((m.borrowers / m.total) * 100)})`;
       add(highExit ? "watch" : "good", "สมาชิก", `สมาชิกเพิ่มขึ้น ${pct(growth(m.total, m.prevTotal))} เป็น ${cnt(m.total)} คน${highExit ? " แต่ผู้ออกสูงสุดในรอบหลายปี" : ""}`, d, "trends");
@@ -1071,7 +1072,7 @@
       </section>
       <section class="section"><h3 style="margin-bottom:8px">การจัดสรรกำไรสุทธิ</h3><div class="table-wrap"><table>
         <thead><tr><th>ปี</th><th class="r">กำไรสุทธิ</th><th class="r">เติบโต</th><th class="r">ทุนสำรอง</th><th class="r">% ของกำไร</th><th class="r">เงินปันผล</th><th class="r">อัตรา</th><th class="r">เงินเฉลี่ยคืน</th><th class="r">อัตรา</th><th class="r">โบนัสกรรมการและเจ้าหน้าที่</th></tr></thead>
-        <tbody>${H.slice().reverse().map((h) => { const p = hist[hist.indexOf(h) - 1]; return `<tr><td>${h.year}</td><td class="r num">${baht(h.profit)}</td><td class="r num">${p ? spct(growth(h.profit, p.profit)) : "–"}</td><td class="r num">${baht(h.reserve)}</td><td class="r num">${pct((h.reserve / h.profit) * 100)}</td><td class="r num">${baht(h.dividend)}</td><td class="r num">${pct(h.dividendRate)}</td><td class="r num">${baht(h.refund)}</td><td class="r num">${esc(refundText(h))}</td><td class="r num">${baht(h.bonus)}</td></tr>`; }).join("") || `<tr><td colspan="10" class="empty">ไม่มีข้อมูลในช่วงปีที่เลือก</td></tr>`}</tbody>
+        <tbody>${H.slice().reverse().map((h) => { const p = hist[hist.indexOf(h) - 1]; return `<tr><td>${h.year}</td><td class="r num">${baht(h.profit)}</td><td class="r num">${p ? spct(growth(h.profit, p.profit)) : "–"}</td><td class="r num">${baht(h.reserve)}</td><td class="r num">${h.reserve == null ? "–" : pct((h.reserve / h.profit) * 100)}</td><td class="r num">${baht(h.dividend)}</td><td class="r num">${pct(h.dividendRate)}</td><td class="r num">${baht(h.refund)}</td><td class="r num">${esc(refundText(h))}</td><td class="r num">${baht(h.bonus)}</td></tr>`; }).join("") || `<tr><td colspan="10" class="empty">ไม่มีข้อมูลในช่วงปีที่เลือก</td></tr>`}</tbody>
       </table></div></section>`;
 
     if (H.length) {

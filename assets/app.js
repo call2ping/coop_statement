@@ -6,6 +6,7 @@
   const C = window.Charts;
   const esc = C.esc;
   const coops = window.COOP_DATA || [];
+  coops.forEach((c) => { if (!c.litigation && window.COOP_LITIGATION && window.COOP_LITIGATION[c.id]) c.litigation = window.COOP_LITIGATION[c.id]; });
   const BENCH = window.COOP_BENCHMARKS || {};
 
   // ------------------------------------------------------------ formatting
@@ -38,6 +39,7 @@
     { id: "portfolio", label: "สินเชื่อ เงินฝาก และแหล่งเงินทุน" },
     { id: "budget", label: "งบประมาณ" },
     { id: "trends", label: "แนวโน้มหลายปี" },
+    { id: "legal", label: "คดีความและการร้องเรียน" },
     { id: "findings", label: "ข้อค้นพบ" }
   ];
   const SEV = {
@@ -59,6 +61,7 @@
     port: { sections: new Set(["loans", "funding", "placed", "invest", "lines"]), q: "", problemOnly: false },
     budget: { cat: "all", status: "all", q: "", sort: "variance" },
     trend: { from: null, to: null },
+    legal: { status: "all", role: "all", q: "" },
     find: { sev: new Set(["risk", "watch", "good", "info"]), topic: "all", q: "" }
   };
 
@@ -452,6 +455,22 @@
       const down = (c.plan.revenueLines || []).filter((l) => l.next < l.actual).sort((a, b) => (a.next - a.actual) - (b.next - b.actual));
       if (down.length) d += ` โดยคาดว่า${down.slice(0, 2).map((l) => `${l.name} ลดลงเหลือ ${amt(l.next)}`).join(" และ")}`;
       add("info", "แผนปีถัดไป", `เป้ากำไรปี ${yr + 1} ${M(pn)} (${spct(growth(pn, np))} จากผลจริงปีนี้)`, d, "budget");
+    }
+
+    // คดีความและการร้องเรียน
+    if (c.litigation) {
+      const L = c.litigation;
+      const cases = L.cases || [];
+      const open = cases.filter((x) => x.status === "ongoing");
+      const against = open.filter((x) => x.role === "จำเลย" || x.role === "ผู้ถูกกล่าวหา");
+      if (!cases.length) {
+        add("info", "คดีความ", "ไม่พบคดีความหรือการร้องเรียนที่เปิดเผยต่อสาธารณะ", `${L.disclosure || "รายงานประจำปีไม่ได้ระบุคดี"} ${L.searchNote || ""}`.trim(), "legal");
+      } else {
+        const amt0 = sum(open.map((x) => x.amount || 0));
+        const sev = against.length ? "risk" : open.length ? "watch" : "info";
+        add(sev, "คดีความ", `มีคดีที่เกี่ยวข้อง ${cases.length} เรื่อง ยังไม่สิ้นสุด ${open.length} เรื่อง${against.length ? ` (สหกรณ์เป็นฝ่ายถูกฟ้อง/ถูกกล่าวหา ${against.length} เรื่อง)` : ""}`,
+          `${open.map((x) => x.title).join(" · ")}${amt0 ? ` มูลหนี้ตามคำพิพากษาหรือที่เรียกร้องรวม ${M(amt0)}` : ""}${L.disclosure ? ` — ${L.disclosure}` : ""}`, "legal");
+      }
     }
 
     (c.customFindings || []).forEach((f) => add(f.sev, f.topic, f.title, f.detail, f.tab));
@@ -1081,6 +1100,53 @@
     }
   }
 
+  // ---------------- litigation
+  const LEGAL_STATUS = { ongoing: "ยังไม่สิ้นสุด", closed: "สิ้นสุดแล้ว", unknown: "ไม่ทราบสถานะ" };
+  function renderLegal(c) {
+    const L = c.litigation;
+    if (!L) {
+      main.innerHTML = `<div class="empty">ยังไม่ได้ค้นหาข้อมูลคดีความของสหกรณ์นี้</div>`;
+      return;
+    }
+    const f = state.legal;
+    const all = L.cases || [];
+    const roles = [...new Set(all.map((x) => x.role))];
+    if (f.role !== "all" && !roles.includes(f.role)) f.role = "all";
+    const q = f.q.trim().toLowerCase();
+    const rows = all.filter((x) => (f.status === "all" || x.status === f.status) && (f.role === "all" || x.role === f.role) &&
+      (!q || [x.title, x.summary, x.type, x.counterparty || ""].join(" ").toLowerCase().indexOf(q) >= 0));
+    const cnt0 = (st) => all.filter((x) => x.status === st).length;
+    const src = (s) => `<a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.label)}</a>`;
+    main.innerHTML = `
+      <div class="section-head"><div><h2>คดีความและการร้องเรียน</h2><p>รวบรวมจากรายงานประจำปี (หัวข้อการถูกร้องทุกข์ ดำเนินคดี ร้องเรียน และลงโทษ ตามกฎกระทรวงฯ พ.ศ. 2564 ข้อ 14(2) และหมายเหตุประกอบงบการเงิน) และการค้นหาข่าวบนอินเทอร์เน็ต · ตรวจสอบเมื่อ ${esc(L.checked || "–")}</p></div></div>
+      <section class="section kpis">
+        <div class="card kpi"><div class="label">คดีที่พบ</div><div class="value">${all.length}</div></div>
+        <div class="card kpi"><div class="label">ยังไม่สิ้นสุด</div><div class="value">${cnt0("ongoing")}</div></div>
+        <div class="card kpi"><div class="label">สิ้นสุดแล้ว</div><div class="value">${cnt0("closed")}</div></div>
+        <div class="card kpi"><div class="label">สหกรณ์เป็นฝ่ายถูกฟ้อง/ถูกกล่าวหา</div><div class="value">${all.filter((x) => x.role === "จำเลย" || x.role === "ผู้ถูกกล่าวหา").length}</div></div>
+      </section>
+      <section class="section grid grid-2">
+        <div class="card"><h3>สิ่งที่รายงานประจำปีเปิดเผย</h3><p class="sub">${esc(c.report.title)}</p><p>${esc(L.disclosure || "–")}</p></div>
+        <div class="card"><h3>ผลการค้นหาบนอินเทอร์เน็ต</h3><p class="sub">ข่าว เว็บไซต์หน่วยงานราชการ และฐานข้อมูลคำพิพากษา</p><p>${esc(L.searchNote || "–")}</p></div>
+      </section>
+      <div class="filters" role="group" aria-label="ตัวกรองคดี">
+        <div class="field"><span class="field-label">สถานะ</span><div class="chips">${chip("legal.status", "all", `ทั้งหมด (${all.length})`, f.status === "all")}${Object.keys(LEGAL_STATUS).filter((k) => cnt0(k)).map((k) => chip("legal.status", k, `${LEGAL_STATUS[k]} (${cnt0(k)})`, f.status === k)).join("")}</div></div>
+        <label class="field"><span class="field-label">บทบาทของสหกรณ์</span><select data-f="legal.role">${option("all", "ทุกบทบาท", f.role === "all")}${roles.map((r) => option(r, r, f.role === r)).join("")}</select></label>
+        <label class="field grow"><span class="field-label">ค้นหา</span><input type="search" placeholder="เช่น สลาก, ล้มละลาย, อดีตเจ้าหน้าที่" value="${esc(f.q)}" data-f="legal.q"></label>
+        <span class="filter-summary">แสดง ${rows.length} จาก ${all.length} เรื่อง</span>
+      </div>
+      <div class="findings">${rows.map((x) => `<article class="finding sev-${x.status === "ongoing" ? (x.role === "จำเลย" || x.role === "ผู้ถูกกล่าวหา" ? "risk" : "watch") : "info"}">
+        <div class="rail" aria-hidden="true"></div>
+        <div>
+          <div class="finding-head"><span class="tag">${esc(LEGAL_STATUS[x.status] || x.status)}</span><span class="tag">สหกรณ์เป็น${esc(x.role)}</span><span class="tag">${esc(x.type)}</span>${x.period ? `<span class="tag">${esc(x.period)}</span>` : ""}</div>
+          <h3>${esc(x.title)}</h3>
+          <p>${esc(x.summary)}</p>
+          ${x.amount ? `<p class="small">มูลค่าที่เกี่ยวข้อง: <strong>${baht(x.amount)} บาท</strong></p>` : ""}
+          <p class="small muted">ที่มา: ${(x.sources || []).map(src).join(" · ")}</p>
+        </div></article>`).join("") || `<div class="empty">${all.length ? "ไม่มีเรื่องที่ตรงกับตัวกรอง" : "ไม่พบคดีความหรือการร้องเรียนจากแหล่งข้อมูลที่ตรวจสอบ"}</div>`}</div>
+      <p class="small muted">ข้อมูลส่วนนี้สรุปจากเอกสารและข่าวที่เปิดเผยต่อสาธารณะ ไม่ได้ระบุชื่อบุคคลธรรมดาที่เป็นคู่ความ และอาจไม่ครบถ้วนหรือไม่เป็นปัจจุบัน ควรตรวจสอบกับสหกรณ์หรือศาลก่อนนำไปใช้</p>`;
+  }
+
   // ---------------- findings
   function renderFindings(c, A) {
     const f = state.find;
@@ -1183,6 +1249,7 @@
       { label: "เงินให้กู้รวม", value: mb(tot(({ A }) => A.val("st_loans", "y") + A.val("lt_loans", "y"))), unit: "ล้านบาท" },
       { label: "กำไรสุทธิรวม", value: mb(npY), unit: "ล้านบาท", d: delta(growth(npY, npP), true) },
       { label: "สมาชิกรวม", value: cnt(tot(({ c }) => (c.members ? c.members.total : 0))), unit: "คน" },
+      { label: "คดีที่ยังไม่สิ้นสุด", value: cnt(tot(({ c }) => ((c.litigation && c.litigation.cases) || []).filter((x) => x.status === "ongoing").length)), unit: "เรื่อง" },
       { label: "ความเสี่ยง / เฝ้าระวัง", value: `${tot(({ A }) => sevCount(A, "risk"))} / ${tot(({ A }) => sevCount(A, "watch"))}`, unit: "ประเด็น" }
     ];
 
@@ -1329,7 +1396,7 @@
   }
 
   // ------------------------------------------------------------ shell
-  const RENDER = { overview: renderOverview, statements: renderStatements, ratios: renderRatios, portfolio: renderPortfolio, budget: renderBudget, trends: renderTrends, findings: renderFindings };
+  const RENDER = { overview: renderOverview, statements: renderStatements, ratios: renderRatios, portfolio: renderPortfolio, budget: renderBudget, trends: renderTrends, legal: renderLegal, findings: renderFindings };
   const analyses = [];
 
   function analysisOf(i) {

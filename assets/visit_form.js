@@ -4,7 +4,7 @@
 (function () {
   const W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
   const CHECK = { pass: "☑", fail: "☒", unknown: "☐" };
-  const TEMPLATE_SRC = "assets/visit_template.js?v=12";
+  const TEMPLATE_SRC = "assets/visit_template.js?v=13";
 
   // ------------------------------------------------------------ zip (store only)
   const CRC_TABLE = (() => {

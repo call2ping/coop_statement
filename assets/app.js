@@ -215,7 +215,7 @@
       }
       if (c.plan && c.plan.current) d += ` คิดเป็น ${pct((np / c.plan.current.profitPlan) * 100)} ของเป้าหมาย ${M(c.plan.current.profitPlan)}`;
       if (g < 0 && c.profitContext) d += ` — ${c.profitContext}`;
-      add(g >= 0 ? "good" : c.profitContext ? "watch" : "risk", "ผลประกอบการ", `กำไรสุทธิ${g >= 0 ? "เพิ่มขึ้น" : "ลดลง"} ${pct(Math.abs(g))} เป็น ${M(np)}`, d, "statements");
+      add(g >= 0 ? "good" : c.profitContext || g > -10 ? "watch" : "risk", "ผลประกอบการ", `กำไรสุทธิ${g >= 0 ? "เพิ่มขึ้น" : "ลดลง"} ${pct(Math.abs(g))} เป็น ${M(np)}`, d, "statements");
     }
 
     // คุณภาพกำไร

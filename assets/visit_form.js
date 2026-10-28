@@ -8,7 +8,7 @@
   const W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
   const XML_NS = "http://www.w3.org/XML/1998/namespace";
   const CHECK = { yes: "☑", no: "☒" };
-  const TEMPLATE_SRC = "assets/visit_template.js?v=14";
+  const TEMPLATE_SRC = "assets/visit_template.js?v=16";
   const OWN_COOP = "สอ.บวท.";
   const DECISIONS = ["คงวงเงิน", "ติดตามปกติ", "ติดตามใกล้ชิด", "ทบทวนวงเงิน", "ขอหลักประกัน"];
   const MONTH_ABBR = { มกราคม: "ม.ค.", กุมภาพันธ์: "ก.พ.", มีนาคม: "มี.ค.", เมษายน: "เม.ย.", พฤษภาคม: "พ.ค.", มิถุนายน: "มิ.ย.", กรกฎาคม: "ก.ค.", สิงหาคม: "ส.ค.", กันยายน: "ก.ย.", ตุลาคม: "ต.ค.", พฤศจิกายน: "พ.ย.", ธันวาคม: "ธ.ค." };

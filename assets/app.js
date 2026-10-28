@@ -1234,6 +1234,7 @@
       <div class="card-actions">
         <button type="button" class="btn btn-primary" data-open-coop="${i}">ดูการวิเคราะห์ →</button>
         <button type="button" class="btn" data-open-coop="${i}" data-open-tab="findings">ข้อค้นพบ (${A.findings.length})</button>
+        <button type="button" class="btn" data-export-visit="${i}" title="ดาวน์โหลดแบบบันทึกการเข้าร่วมประชุมใหญ่ที่กรอกผลวิเคราะห์แล้ว">แบบบันทึก .docx</button>
       </div>
     </article>`;
   }
@@ -1507,7 +1508,23 @@
     if (b) go(b.dataset.tab);
   });
 
+  // แบบบันทึกการเข้าร่วมประชุมใหญ่ (.docx) — see assets/visit_form.js
+  const FMT = { M, pct, spct, cnt, growth, refundText };
+  function exportVisit(i, btn) {
+    if (!window.VisitForm) return;
+    const label = btn ? btn.textContent : "";
+    if (btn) { btn.disabled = true; btn.textContent = "กำลังสร้างไฟล์…"; }
+    window.VisitForm.download(coops[i], analysisOf(i), FMT)
+      .catch((err) => alert(`สร้างแบบบันทึกไม่สำเร็จ: ${err.message}`))
+      .finally(() => { if (btn) { btn.disabled = false; btn.textContent = label; } });
+  }
+  window.CoopApp = { coops, analysisOf, FMT };
+
+  document.getElementById("export-visit").addEventListener("click", (e) => exportVisit(state.coop, e.currentTarget));
+
   document.addEventListener("click", (e) => {
+    const exp = e.target.closest("[data-export-visit]");
+    if (exp) return exportVisit(Number(exp.dataset.exportVisit), exp);
     const open = e.target.closest("[data-open-coop]");
     if (open) return navigate(coopHash(Number(open.dataset.openCoop), open.dataset.openTab));
     const mx = e.target.closest("[data-matrix-coop]");

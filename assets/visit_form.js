@@ -549,6 +549,16 @@
         for (let j = i + 1; j < runs.length && /^_+\s*$/.test(textOf(runs[j])); j++) {
           els(runs[j], "t")[0].textContent = /\s$/.test(textOf(runs[j])) ? "   " : "";
         }
+        if (a.date) {
+          const all = directChildren(head, "r");
+          const d = all.findIndex((r) => textOf(r).indexOf("วันที่") >= 0);
+          if (d >= 0) {
+            els(all[d], "t")[0].textContent = "วันที่ ";
+            head.insertBefore(makeRun(doc, directChildren(all[d], "rPr")[0], a.date, { underline: true }), all[d].nextSibling);
+            head.insertBefore(makeRun(doc, directChildren(all[d], "rPr")[0], " "), all[d].nextSibling);
+            for (let j = d + 1; j < all.length && /^_+\s*$/.test(textOf(all[j])); j++) els(all[j], "t")[0].textContent = "";
+          }
+        }
       }
     }
 
@@ -641,9 +651,10 @@
     });
   }
 
-  async function build(c, A) {
+  // overrides: optional hand-written content (any field returned by assess, plus date) that replaces the generated one
+  async function build(c, A, overrides) {
     const parts = await loadTemplate();
-    const a = assess(c, A);
+    const a = Object.assign(assess(c, A), overrides || {});
     const files = parts.map((p) => (p.name === "word/document.xml" ? { name: p.name, text: fill(p.text, c, a) } : p));
     return { blob: zipStore(files), assessment: a, filename: `แบบบันทึกประชุมใหญ่_${c.shortName.replace(/[\\/:*?"<>|\s]+/g, "")}_${c.report.year}.docx` };
   }
